@@ -1,10 +1,10 @@
-// Use database
+-- Use database
 use inventoryDB;
 
-// Create Audit Logs Collection
+-- Create Audit Logs Collection
 db.createCollection("audit_logs");
 
-// Insert Sample Logs
+-- Insert Sample Logs
 db.audit_logs.insertMany([
   {
     product_id: 1,
@@ -22,5 +22,5 @@ db.audit_logs.insertMany([
   }
 ]);
 
-// Create Index for Quick Search
+-- Index for Quick Search
 db.audit_logs.createIndex({ product_id: 1 });
