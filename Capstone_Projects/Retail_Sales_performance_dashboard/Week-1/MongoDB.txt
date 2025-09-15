@@ -1,0 +1,25 @@
+use RetailSalesDB;
+
+-- Insert campaign feedback
+db.CampaignFeedback.insertMany([
+  { campaign_name: "Diwali Offer", store_id: 1, customer_feedback: "Great discounts!", rating: 5 },
+  { campaign_name: "Summer Sale", store_id: 2, customer_feedback: "Good offers but limited stock", rating: 3 }
+]);
+
+-- Read feedback
+db.CampaignFeedback.find();
+
+-- Update feedback
+db.CampaignFeedback.updateOne(
+  { campaign_name: "Summer Sale" },
+  { $set: { rating: 4 } }
+);
+
+-- Delete feedback
+db.CampaignFeedback.deleteOne({ campaign_name: "Diwali Offer" });
+
+-- Index on product
+db.CampaignFeedback.createIndex({ campaign_name: 1 });
+
+-- Index on region
+db.CampaignFeedback.createIndex({ store_id: 1 });

@@ -1,0 +1,26 @@
+// Use database
+use inventoryDB;
+
+// Create Audit Logs Collection
+db.createCollection("audit_logs");
+
+// Insert Sample Logs
+db.audit_logs.insertMany([
+  {
+    product_id: 1,
+    action: "Stock Adjustment",
+    reason: "Damaged Items",
+    adjusted_by: "Admin",
+    timestamp: new Date()
+  },
+  {
+    product_id: 2,
+    action: "Stock Adjustment",
+    reason: "Supplier Return",
+    adjusted_by: "Manager",
+    timestamp: new Date()
+  }
+]);
+
+// Create Index for Quick Search
+db.audit_logs.createIndex({ product_id: 1 });

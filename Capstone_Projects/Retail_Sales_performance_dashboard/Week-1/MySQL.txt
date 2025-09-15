@@ -1,0 +1,87 @@
+-- Create Database
+CREATE DATABASE RetailSalesDB;
+USE RetailSalesDB;
+
+-- Table: Products
+CREATE TABLE Products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_name VARCHAR(100) NOT NULL,
+    category VARCHAR(50),
+    price DECIMAL(10,2) NOT NULL
+);
+
+-- Table: Stores
+CREATE TABLE Stores (
+    store_id INT AUTO_INCREMENT PRIMARY KEY,
+    store_name VARCHAR(100) NOT NULL,
+    region VARCHAR(50)
+);
+
+-- Table: Employees
+CREATE TABLE Employees (
+    employee_id INT AUTO_INCREMENT PRIMARY KEY,
+    employee_name VARCHAR(100) NOT NULL,
+    position VARCHAR(50),
+    store_id INT,
+    FOREIGN KEY (store_id) REFERENCES Stores(store_id)
+);
+
+-- Table: Sales
+CREATE TABLE Sales (
+    sale_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_id INT,
+    store_id INT,
+    employee_id INT,
+    quantity INT NOT NULL,
+    sale_date DATE NOT NULL,
+    FOREIGN KEY (product_id) REFERENCES Products(product_id),
+    FOREIGN KEY (store_id) REFERENCES Stores(store_id),
+    FOREIGN KEY (employee_id) REFERENCES Employees(employee_id)
+);
+
+-- Insert Products
+INSERT INTO Products (product_name, category, price) VALUES
+('Laptop', 'Electronics', 60000),
+('Smartphone', 'Electronics', 25000),
+('Shoes', 'Fashion', 3000),
+('Washing Machine', 'Appliances', 35000);
+
+-- Insert Stores
+INSERT INTO Stores (store_name, region) VALUES
+('Chennai Central', 'South'),
+('Delhi Mall', 'North');
+
+-- Insert Employees
+INSERT INTO Employees (employee_name, position, store_id) VALUES
+('Rahul', 'Sales Executive', 1),
+('Priya', 'Cashier', 2);
+
+-- Insert Sales
+INSERT INTO Sales (product_id, store_id, employee_id, quantity, sale_date) VALUES
+(1, 1, 1, 5, '2025-09-10'),
+(2, 2, 2, 3, '2025-09-11');
+
+-- Read sales
+SELECT * FROM Sales;
+
+-- Update sales quantity
+UPDATE Sales SET quantity = 6 WHERE sale_id = 1;
+
+-- Delete a sale
+DELETE FROM Sales WHERE sale_id = 2;
+
+-- Calcualte daily sales of the store
+DELIMITER $$
+CREATE PROCEDURE GetDailySales(IN input_store_id INT, IN input_date DATE)
+BEGIN
+    SELECT s.store_id, st.store_name,
+           SUM(p.price * s.quantity) AS total_sales
+    FROM Sales s
+    JOIN Products p ON s.product_id = p.product_id
+    JOIN Stores st ON s.store_id = st.store_id
+    WHERE s.store_id = input_store_id AND s.sale_date = input_date
+    GROUP BY s.store_id, st.store_name;
+END$$
+DELIMITER ;
+
+
