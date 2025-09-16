@@ -1,0 +1,173 @@
+use movieDB
+
+// Users Collection 
+db.users.insertMany([ 
+  { _id: 1, name: "Rahul Sharma", email: "rahul@example.com", city: "Bangalore", plan: "Premium" }, 
+  { _id: 2, name: "Priya Singh", email: "priya@example.com", city: "Delhi", plan: "Basic" }, 
+  { _id: 3, name: "Aman Kumar", email: "aman@example.com", city: "Hyderabad", plan: "Standard" } 
+]); 
+
+// Movies Collection 
+db.movies.insertMany([ 
+  { _id: 101, title: "Inception", genre: "Sci-Fi", year: 2010, rating: 8.8 }, 
+  { _id: 102, title: "3 Idiots", genre: "Comedy", year: 2009, rating: 8.4 }, 
+  { _id: 103, title: "Bahubali", genre: "Action", year: 2015, rating: 8.1 }, 
+  { _id: 104, title: "The Dark Knight", genre: "Action", year: 2008, rating: 9.0 }, 
+  { _id: 105, title: "Dangal", genre: "Drama", year: 2016, rating: 8.5 } 
+]); 
+
+// Subscriptions Collection 
+db.subscriptions.insertMany([ 
+  { user_id: 1, start_date: ISODate("2025-01-01"), end_date: ISODate("2025-12-31"), amount: 999 }, 
+  { user_id: 2, start_date: ISODate("2025-02-01"), end_date: ISODate("2025-07-31"), amount: 499 }, 
+  { user_id: 3, start_date: ISODate("2025-01-15"), end_date: ISODate("2025-10-15"), amount: 799 } 
+]); 
+
+// Watch History Collection 
+db.watchHistory.insertMany([ 
+  { user_id: 1, movie_id: 101, watch_date: ISODate("2025-02-10") }, 
+  { user_id: 1, movie_id: 102, watch_date: ISODate("2025-02-12") }, 
+  { user_id: 2, movie_id: 103, watch_date: ISODate("2025-02-11") }, 
+  { user_id: 3, movie_id: 104, watch_date: ISODate("2025-02-13") }, 
+  { user_id: 3, movie_id: 105, watch_date: ISODate("2025-02-14") } 
+]);
+
+
+// 1. Insert a new user in Mumbai with a "Standard" plan
+db.users.insertOne({ _id: 4, name: "Rohit Verma", email: "rohit@example.com", city: "Mumbai", plan: "Standard" });
+
+// 2. Update "Bahubali" rating to 8.3
+db.movies.updateOne({ title: "Bahubali" }, { $set: { rating: 8.3 } });
+
+// 3. Delete the movie "3 Idiots"
+db.movies.deleteOne({ title: "3 Idiots" });
+
+// 4. Find all users with "Premium" plan
+db.users.find({ plan: "Premium" });
+
+// 5. Create a unique index on users.email
+db.users.createIndex({ email: 1 }, { unique: true });
+
+// 6. Create a compound index on movies.genre and rating
+db.movies.createIndex({ genre: 1, rating: -1 });
+
+// 7. Verify indexes using getIndexes()
+db.movies.getIndexes();
+db.users.getIndexes();
+
+// 8. Query that benefits from compound index
+db.movies.find({ genre: "Action" }).sort({ rating: -1 });
+
+// 9. Query that forces a COLLSCAN
+db.movies.find({ rating: { $gt: 0 } }).hint({ $natural: 1 });
+
+// 10. Count how many movies exist in each genre
+db.movies.aggregate([
+  { $group: { _id: "$genre", totalMovies: { $sum: 1 } } }
+]);
+
+// 11. Find the top 2 highest-rated movies
+db.movies.aggregate([
+  { $sort: { rating: -1 } },
+  { $limit: 2 }
+]);
+
+// 12. Calculate average subscription amount per plan type
+db.users.aggregate([
+  { $lookup: { from: "subscriptions", localField: "_id", foreignField: "user_id", as: "subs" } },
+  { $unwind: "$subs" },
+  { $group: { _id: "$plan", avgAmount: { $avg: "$subs.amount" } } }
+]);
+
+// 13. Show the total watch count per movie
+db.watchHistory.aggregate([
+  { $group: { _id: "$movie_id", watchCount: { $sum: 1 } } }
+]);
+
+// 14. Find city with max Premium users
+db.users.aggregate([
+  { $match: { plan: "Premium" } },
+  { $group: { _id: "$city", total: { $sum: 1 } } },
+  { $sort: { total: -1 } },
+  { $limit: 1 }
+]);
+
+// 15. Most popular genre by total watch count
+db.watchHistory.aggregate([
+  { $lookup: { from: "movies", localField: "movie_id", foreignField: "_id", as: "movie" } },
+  { $unwind: "$movie" },
+  { $group: { _id: "$movie.genre", totalWatches: { $sum: 1 } } },
+  { $sort: { totalWatches: -1 } },
+  { $limit: 1 }
+]);
+
+// 16. Show all watch history with user name and movie title
+db.watchHistory.aggregate([
+  { $lookup: { from: "users", localField: "user_id", foreignField: "_id", as: "user" } },
+  { $lookup: { from: "movies", localField: "movie_id", foreignField: "_id", as: "movie" } },
+  { $project: { "user.name": 1, "movie.title": 1, watch_date: 1 } }
+]);
+
+// 17. List all movies watched by "Rahul Sharma"
+db.watchHistory.aggregate([
+  { $lookup: { from: "users", localField: "user_id", foreignField: "_id", as: "user" } },
+  { $lookup: { from: "movies", localField: "movie_id", foreignField: "_id", as: "movie" } },
+  { $unwind: "$user" },
+  { $unwind: "$movie" },
+  { $match: { "user.name": "Rahul Sharma" } },
+  { $project: { "movie.title": 1 } }
+]);
+
+// 18. Show each user with subscription details
+db.users.aggregate([
+  { $lookup: { from: "subscriptions", localField: "_id", foreignField: "user_id", as: "subscription" } }
+]);
+
+// 19. Find users who watched movies released after 2010
+db.watchHistory.aggregate([
+  { $lookup: { from: "movies", localField: "movie_id", foreignField: "_id", as: "movie" } },
+  { $unwind: "$movie" },
+  { $match: { "movie.year": { $gt: 2010 } } },
+  { $lookup: { from: "users", localField: "user_id", foreignField: "_id", as: "user" } },
+  { $project: { "user.name": 1, "movie.title": 1 } }
+]);
+
+// 20. For each movie, list all the users who watched it
+db.watchHistory.aggregate([
+  { $lookup: { from: "users", localField: "user_id", foreignField: "_id", as: "user" } },
+  { $group: { _id: "$movie_id", users: { $push: "$user.name" } } }
+]);
+
+// 21. Find users who watched more than 2 movies
+db.watchHistory.aggregate([
+  { $group: { _id: "$user_id", total: { $sum: 1 } } },
+  { $match: { total: { $gt: 2 } } }
+]);
+
+// 22. Find total revenue collected from subscriptions
+db.subscriptions.aggregate([
+  { $group: { _id: null, totalRevenue: { $sum: "$amount" } } }
+]);
+
+// 23. Find users whose subscription will expire in the next 30 days
+db.subscriptions.aggregate([
+  { $match: { end_date: { $lte: new Date(new Date().getTime() + 30*24*60*60*1000) } } },
+  { $lookup: { from: "users", localField: "user_id", foreignField: "_id", as: "user" } }
+]);
+
+// 24. Show the most-watched movie overall
+db.watchHistory.aggregate([
+  { $group: { _id: "$movie_id", watchCount: { $sum: 1 } } },
+  { $sort: { watchCount: -1 } },
+  { $limit: 1 }
+]);
+
+// 25. Show the least-watched genre
+db.watchHistory.aggregate([
+  { $lookup: { from: "movies", localField: "movie_id", foreignField: "_id", as: "movie" } },
+  { $unwind: "$movie" },
+  { $group: { _id: "$movie.genre", totalWatches: { $sum: 1 } } },
+  { $sort: { totalWatches: 1 } },
+  { $limit: 1 }
+]);
+
