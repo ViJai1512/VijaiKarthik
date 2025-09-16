@@ -1,0 +1,218 @@
+use foodDeliveryDB
+
+// Customers 
+db.customers.insertMany([ 
+  { _id: 1, name: "Rahul Sharma", email: "rahul@example.com", city: "Bangalore" }, 
+  { _id: 2, name: "Priya Singh", email: "priya@example.com", city: "Delhi" }, 
+  { _id: 3, name: "Aman Kumar", email: "aman@example.com", city: "Hyderabad" } 
+]); 
+
+// Restaurants 
+db.restaurants.insertMany([ 
+  { _id: 101, name: "Spicy Treats", city: "Bangalore", rating: 4.5 }, 
+  { _id: 102, name: "Delhi Biryani House", city: "Delhi", rating: 4.2 }, 
+  { _id: 103, name: "Hyderabad Grill", city: "Hyderabad", rating: 4.7 } 
+]); 
+
+// Menu Items (each linked to restaurant) 
+db.menu.insertMany([ 
+  { _id: 201, restaurant_id: 101, name: "Paneer Tikka", price: 250 }, 
+  { _id: 202, restaurant_id: 101, name: "Veg Biryani", price: 180 }, 
+  { _id: 203, restaurant_id: 102, name: "Chicken Biryani", price: 300 }, 
+  { _id: 204, restaurant_id: 103, name: "Mutton Biryani", price: 400 }, 
+  { _id: 205, restaurant_id: 103, name: "Butter Naan", price: 50 } 
+]); 
+
+// Orders (linked to customer + menu items array) 
+db.orders.insertMany([ 
+  { 
+    _id: 301, 
+    customer_id: 1, 
+    items: [ { menu_id: 201, qty: 2 }, { menu_id: 202, qty: 1 } ], 
+    order_date: ISODate("2025-01-05"), 
+    status: "Delivered" 
+  }, 
+  { 
+    _id: 302, 
+    customer_id: 2, 
+    items: [ { menu_id: 203, qty: 1 } ], 
+    order_date: ISODate("2025-01-06"), 
+    status: "Delivered" 
+  }, 
+  { 
+    _id: 303, 
+    customer_id: 3, 
+    items: [ { menu_id: 204, qty: 1 }, { menu_id: 205, qty: 3 } ], 
+    order_date: ISODate("2025-01-07"), 
+    status: "Pending" 
+  } 
+]);
+
+// 1. Insert a new customer in Mumbai
+db.customers.insertOne({ _id: 4, name: "Rohit Verma", email: "rohit@example.com", city: "Mumbai" });
+
+// 2. Find all restaurants in Hyderabad
+db.restaurants.find({ city: "Hyderabad" });
+
+// 3. Update the rating of "Spicy Treats" to 4.8
+db.restaurants.updateOne({ name: "Spicy Treats" }, { $set: { rating: 4.8 } });
+
+// 4. Delete menu item "Butter Naan"
+db.menu.deleteOne({ name: "Butter Naan" });
+
+// 5. Create unique index on customers.email
+db.customers.createIndex({ email: 1 }, { unique: true });
+
+// 6. Create compound index on restaurants.city and rating
+db.restaurants.createIndex({ city: 1, rating: -1 });
+
+// 7. Verify indexes
+db.customers.getIndexes();
+db.restaurants.getIndexes();
+
+// 8. Query that benefits from compound index
+db.restaurants.find({ city: "Delhi" }).sort({ rating: -1 });
+
+// 9. Query that forces COLLSCAN
+db.restaurants.find({ rating: { $gt: 4 } }).hint({ $natural: 1 });
+
+// 10. Total orders placed by each customer
+db.orders.aggregate([
+  { $group: { _id: "$customer_id", totalOrders: { $sum: 1 } } }
+]);
+
+// 11. Total revenue per restaurant
+db.orders.aggregate([
+  { $unwind: "$items" },
+  { $lookup: { from: "menu", localField: "items.menu_id", foreignField: "_id", as: "menuItem" } },
+  { $unwind: "$menuItem" },
+  { $lookup: { from: "restaurants", localField: "menuItem.restaurant_id", foreignField: "_id", as: "rest" } },
+  { $unwind: "$rest" },
+  { $group: { _id: "$rest.name", revenue: { $sum: { $multiply: ["$items.qty", "$menuItem.price"] } } } }
+]);
+
+// 12. Top 2 most expensive dishes
+db.menu.aggregate([
+  { $sort: { price: -1 } },
+  { $limit: 2 }
+]);
+
+// 13. Average price of dishes per restaurant
+db.menu.aggregate([
+  { $group: { _id: "$restaurant_id", avgPrice: { $avg: "$price" } } }
+]);
+
+// 14. Count pending orders per city
+db.orders.aggregate([
+  { $match: { status: "Pending" } },
+  { $lookup: { from: "customers", localField: "customer_id", foreignField: "_id", as: "cust" } },
+  { $unwind: "$cust" },
+  { $group: { _id: "$cust.city", pendingOrders: { $sum: 1 } } }
+]);
+
+// 15. Highest-rated restaurant in each city
+db.restaurants.aggregate([
+  { $sort: { rating: -1 } },
+  { $group: { _id: "$city", topRestaurant: { $first: "$name" }, rating: { $first: "$rating" } } }
+]);
+
+// 16. Show all orders with customer name and city
+db.orders.aggregate([
+  { $lookup: { from: "customers", localField: "customer_id", foreignField: "_id", as: "cust" } },
+  { $unwind: "$cust" },
+  { $project: { order_id: "$_id", customer: "$cust.name", city: "$cust.city", status: 1 } }
+]);
+
+// 17. Orders with restaurant + menu details
+db.orders.aggregate([
+  { $unwind: "$items" },
+  { $lookup: { from: "menu", localField: "items.menu_id", foreignField: "_id", as: "menuItem" } },
+  { $unwind: "$menuItem" },
+  { $lookup: { from: "restaurants", localField: "menuItem.restaurant_id", foreignField: "_id", as: "rest" } },
+  { $unwind: "$rest" },
+  { $project: { order_id: "$_id", restaurant: "$rest.name", dish: "$menuItem.name", qty: "$items.qty" } }
+]);
+
+// 18. For each customer, list dishes with qty
+db.orders.aggregate([
+  { $unwind: "$items" },
+  { $lookup: { from: "menu", localField: "items.menu_id", foreignField: "_id", as: "menuItem" } },
+  { $unwind: "$menuItem" },
+  { $lookup: { from: "customers", localField: "customer_id", foreignField: "_id", as: "cust" } },
+  { $unwind: "$cust" },
+  { $project: { customer: "$cust.name", dish: "$menuItem.name", qty: "$items.qty" } }
+]);
+
+// 19. Customers who ordered from "Hyderabad Grill"
+db.orders.aggregate([
+  { $unwind: "$items" },
+  { $lookup: { from: "menu", localField: "items.menu_id", foreignField: "_id", as: "menuItem" } },
+  { $unwind: "$menuItem" },
+  { $lookup: { from: "restaurants", localField: "menuItem.restaurant_id", foreignField: "_id", as: "rest" } },
+  { $unwind: "$rest" },
+  { $match: { "rest.name": "Hyderabad Grill" } },
+  { $lookup: { from: "customers", localField: "customer_id", foreignField: "_id", as: "cust" } },
+  { $unwind: "$cust" },
+  { $project: { customer: "$cust.name", city: "$cust.city" } }
+]);
+
+// 20. Detailed bill for order 301
+db.orders.aggregate([
+  { $match: { _id: 301 } },
+  { $unwind: "$items" },
+  { $lookup: { from: "menu", localField: "items.menu_id", foreignField: "_id", as: "menuItem" } },
+  { $unwind: "$menuItem" },
+  { $project: { dish: "$menuItem.name", qty: "$items.qty", price: "$menuItem.price", total: { $multiply: ["$items.qty", "$menuItem.price"] } } }
+]);
+
+// 21. Customers who spent more than 500
+db.orders.aggregate([
+  { $unwind: "$items" },
+  { $lookup: { from: "menu", localField: "items.menu_id", foreignField: "_id", as: "menuItem" } },
+  { $unwind: "$menuItem" },
+  { $group: { _id: "$customer_id", totalSpent: { $sum: { $multiply: ["$items.qty", "$menuItem.price"] } } } },
+  { $match: { totalSpent: { $gt: 500 } } }
+]);
+
+// 22. Top-spending customer in Bangalore
+db.orders.aggregate([
+  { $unwind: "$items" },
+  { $lookup: { from: "menu", localField: "items.menu_id", foreignField: "_id", as: "menuItem" } },
+  { $unwind: "$menuItem" },
+  { $lookup: { from: "customers", localField: "customer_id", foreignField: "_id", as: "cust" } },
+  { $unwind: "$cust" },
+  { $match: { "cust.city": "Bangalore" } },
+  { $group: { _id: "$cust.name", totalSpent: { $sum: { $multiply: ["$items.qty", "$menuItem.price"] } } } },
+  { $sort: { totalSpent: -1 } },
+  { $limit: 1 }
+]);
+
+// 23. Restaurants earning more than 500
+db.orders.aggregate([
+  { $unwind: "$items" },
+  { $lookup: { from: "menu", localField: "items.menu_id", foreignField: "_id", as: "menuItem" } },
+  { $unwind: "$menuItem" },
+  { $lookup: { from: "restaurants", localField: "menuItem.restaurant_id", foreignField: "_id", as: "rest" } },
+  { $unwind: "$rest" },
+  { $group: { _id: "$rest.name", revenue: { $sum: { $multiply: ["$items.qty", "$menuItem.price"] } } } },
+  { $match: { revenue: { $gt: 500 } } }
+]);
+
+// 24. Daily revenue 
+db.orders.aggregate([
+  { $unwind: "$items" },
+  { $lookup: { from: "menu", localField: "items.menu_id", foreignField: "_id", as: "menuItem" } },
+  { $unwind: "$menuItem" },
+  { $group: { _id: "$order_date", dailyRevenue: { $sum: { $multiply: ["$items.qty", "$menuItem.price"] } } } }
+]);
+
+// 25. Most popular dish
+db.orders.aggregate([
+  { $unwind: "$items" },
+  { $group: { _id: "$items.menu_id", totalOrdered: { $sum: "$items.qty" } } },
+  { $sort: { totalOrdered: -1 } },
+  { $limit: 1 },
+  { $lookup: { from: "menu", localField: "_id", foreignField: "_id", as: "dish" } },
+  { $unwind: "$dish" },
+  { $project: { dish: "$dish.name", totalOrdered: 1 } }
+]);
