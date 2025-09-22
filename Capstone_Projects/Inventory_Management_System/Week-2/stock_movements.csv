@@ -1,0 +1,6 @@
+product_id,product_name,movement_type,quantity,movement_date
+1,Laptop,IN,50,2025-09-01
+2,Chair,IN,30,2025-09-01
+3,Keyboard,IN,20,2025-09-02
+1,Laptop,OUT,10,2025-09-03
+3,Keyboard,OUT,15,2025-09-04

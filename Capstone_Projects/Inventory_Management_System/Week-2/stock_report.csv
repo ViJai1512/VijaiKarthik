@@ -1,0 +1,4 @@
+product_id,product_name,reorder_level,current_stock,low_stock_flag
+1,Laptop,5,40,NO
+2,Chair,15,30,NO
+3,Keyboard,10,5,YES
