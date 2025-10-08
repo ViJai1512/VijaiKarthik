@@ -1,0 +1,6 @@
+product_id,warehouse_id,current_stock
+101,W_NORTH,15
+102,W_NORTH,100
+103,W_SOUTH,25
+101,W_SOUTH,50
+104,W_NORTH,10

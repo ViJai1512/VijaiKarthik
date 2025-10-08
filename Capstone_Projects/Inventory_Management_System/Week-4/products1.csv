@@ -1,0 +1,5 @@
+product_id,product_name,category,reorder_threshold
+101,Laptop,Electronics,20
+102,Mouse,Electronics,50
+103,Desk Chair,Furniture,15
+104,Keyboard,Electronics,30
