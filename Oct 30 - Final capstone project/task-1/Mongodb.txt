@@ -1,0 +1,25 @@
+use retail_inventory;
+
+db.customer_feedback.insertMany([
+  {
+    product_id: 1,
+    feedback: "Laptop quality is excellent, battery life is great!",
+    rating: 5
+  },
+  {
+    product_id: 2,
+    feedback: "Mobile camera is good but battery drains fast",
+    rating: 4
+  },
+  {
+    product_id: 3,
+    feedback: "Headphones are decent but not very comfortable",
+    rating: 3
+  }
+]);
+
+
+db.customer_feedback.createIndex({ product_id: 1 });
+
+
+db.customer_feedback.find().pretty();
